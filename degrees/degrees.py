@@ -91,10 +91,32 @@ def shortest_path(source, target):
 
     If no possible path, returns None.
     """
+    qf = QueueFrontier()
+    root = Node(source, None, None)
+    qf.add(root)
+    visited_ids = set()
 
-    # TODO
-    raise NotImplementedError
+    while not qf.empty():
+        node = qf.remove()
 
+        if node.state == target:
+            return build_path(node)
+
+        neighbors = neighbors_for_person(node.state)
+        for neighbor in neighbors:
+            if neighbor[1] not in visited_ids:
+                visited_ids.add(neighbor[1])
+                qf.add(Node(neighbor[1], node, neighbor[0]))
+
+    return None
+
+def build_path(node):
+    path = []
+    while node.parent is not None:
+        path.insert(0, (node.action, node.state))
+        node = node.parent
+
+    return path
 
 def person_id_for_name(name):
     """

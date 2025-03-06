@@ -4,11 +4,17 @@ class Node():
         self.parent = parent
         self.action = action
 
+    def __str__(self):
+        return f"state: {self.state}, parent: {self.parent}, action: {self.action}"
 
 class StackFrontier():
     def __init__(self):
         self.frontier = []
-
+        
+    def __str__(self):
+        for f in self.frontier:
+            print(f)
+    
     def add(self, node):
         self.frontier.append(node)
 

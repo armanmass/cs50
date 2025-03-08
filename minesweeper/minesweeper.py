@@ -92,10 +92,13 @@ class Sentence():
     """
 
     def __init__(self, cells, count):
-        self.cells = set(cells)
-        self.count = count
+        if cells is not None:
+            self.cells = set(cells)
+        else:
+            self.cells = set()
         self.mines = set()
         self.safes = set()
+        self.count = count
 
     def __eq__(self, other):
         return self.cells == other.cells and self.count == other.count
@@ -190,15 +193,27 @@ class MinesweeperAI():
 
         self.knowledge.append(Sentence(sentence_cells, count))
     
-    def parse_sentences(self, cell):
-        for sent in self.knowledge:
-            if len(sent.cells) == sent.count:
-                for cell in sent.cells:
-                    self.mark_mine(cell)
+    def update_knowledge(self):
 
+        new_knowledge = True
+        while new_knowledge:
+            new_knowledge = False
 
-    def resolve_mines(self):
-        return None
+            for sentence in self.knowledge:
+                if len(sentence.cells) == sentence.count:
+                    new_knowledge = True
+                    for mine in sentence.cells.copy():
+                        self.mark_mine(mine)
+            
+            for sentence in self.knowledge:
+                if len(sentence.cells) > 0 and sentence.count == 0:
+                    new_knowledge = True
+                    for safe in sentence.cells.copy():
+                        self.mark_safe(safe)
+            
+            empty_sentence = Sentence(None, 0)
+            
+            self.knowledge = [sentence for sentence in self.knowledge if sentence != empty_sentence]
 
 
     def add_knowledge(self, cell, count):
@@ -219,9 +234,7 @@ class MinesweeperAI():
         self.moves_made.add(cell)
         self.mark_safe(cell)
         self.add_new_sentence(cell, count)
-        self.parse_sentences(cell)
-
-        raise NotImplementedError
+        self.update_knowledge()
 
     def make_safe_move(self):
         """
@@ -251,11 +264,11 @@ class MinesweeperAI():
             1) have not already been chosen, and
             2) are not known to be mines
         """
-        available_moves = set()
+        available_moves = []
 
         for i in range(self.height):
             for j in range(self.width):
                 if (i, j) not in self.moves_made and (i, j) not in self.mines:
-                    available_moves.add((i, j))
+                    available_moves.append((i, j))
 
         return random.choice(available_moves)

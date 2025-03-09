@@ -95,6 +95,18 @@ def sample_pagerank(corpus, damping_factor, n):
 
     return samples
 
+def dict_to_adj_df(pages_dict):
+    pages = set(pages_dict.keys())
+    pages = sorted(list(pages))
+    
+    adj_df = pd.DataFrame(0, index=pages, columns=pages)
+
+    for page, links in pages_dict.items():
+        for link in links:
+            adj_df.loc[page, link] = 1
+
+    return adj_df
+
 def iterate_pagerank(corpus, damping_factor):
     """
     Return PageRank values for each page by iteratively updating
@@ -104,24 +116,40 @@ def iterate_pagerank(corpus, damping_factor):
     their estimated PageRank value (a value between 0 and 1). All
     PageRank values should sum to 1.
     """
-    pagerank = {}
 
-    N = 1/len(corpus)
-    for k in corpus.keys():
-        pagerank[k] = N
+    N = len(corpus)
+    pagerank = np.ones(N) / N
 
-    reverse_corpus = {}
+    trans_M = dict_to_adj_df(corpus).values.astype(float) # N x N adj matrix row is outward edges
+                                                          # columns are inward edges we will use columns
+                                                          # to helper calculate PR(r) by multiplying initial
+                                                          # pagerank_vecotr x trans_M = 1xN vector of new probabilites
+    
+    #we can use this to calculate PR(r) = SUM(PR(i)/NumLinks(i))
+    #NumLinks(i) will be number num_out_going edges of i so we row wise
+    #divide to set prob of clicking any given link else 1/N for all pages
+    #if no outward edges (available links on page = 0)
 
-    for k, v in corpus:
-        for page in v:
-            reverse_corpus[page] = reverse_corpus.get(page, set()).add(k)
+    num_outgoing_edges = trans_M.sum(axis=1)
 
-    #links on page i in original corpus len(v)
-    #
+    for i in range(N):
+        if not num_outgoing_edges[i]:
+            trans_M[i] = pagerank
+        else:
+            trans_M[i] = trans_M[i] / num_outgoing_edges[i]
+    
+    while True:
+        prev_pagerank = pagerank.copy()
 
+        pagerank = (1-damping_factor)/N + damping_factor*np.matmul(pagerank, trans_M)
 
-    return pagerank
-    raise NotImplementedError
+        if np.linalg.norm(pagerank-prev_pagerank, 1) < .001:
+            break
+
+    pagerank = pagerank/np.sum(pagerank)
+    pagerank_dict = dict(zip(corpus.keys(), pagerank))
+
+    return pagerank_dict
 
 
 if __name__ == "__main__":

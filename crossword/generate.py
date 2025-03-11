@@ -2,6 +2,16 @@ import sys
 
 from crossword import *
 
+class Pair:
+    def __init__(self, first, second):
+        self.first = first
+        self.second = second
+
+    def __lt__(self, other):
+        if self.first != other.first:
+            return self.first < other.first
+        return self.second < other.second
+
 
 class CrosswordCreator():
 
@@ -99,7 +109,10 @@ class CrosswordCreator():
         (Remove any values that are inconsistent with a variable's unary
          constraints; in this case, the length of the word.)
         """
-        raise NotImplementedError
+        for var in self.domains:
+            for word in self.domains[var].copy():
+                if var.length != len(word):
+                    self.domains[var].remove(word)
 
     def revise(self, x, y):
         """
@@ -110,7 +123,21 @@ class CrosswordCreator():
         Return True if a revision was made to the domain of `x`; return
         False if no revision was made.
         """
-        raise NotImplementedError
+        revision = False
+
+        if (x, y) in self.crossword.overlaps:
+            i, j = self.crossword.overlaps[x, y]
+            for word in  self.domains[x].copy():
+                match = False
+                for word2 in self.domains[y]:
+                    if word[i] == word2[j]:
+                        match = True
+                        break
+                if not match:
+                    revision = True
+                    self.domains[x].remove(word)
+
+        return revision
 
     def ac3(self, arcs=None):
         """
@@ -121,21 +148,55 @@ class CrosswordCreator():
         Return True if arc consistency is enforced and no domains are empty;
         return False if one or more domains end up empty.
         """
-        raise NotImplementedError
+        if arcs is None: 
+            arcs = []
+            for (x,y) in self.crossword.overlaps:
+                if self.crossword.overlaps[x, y]:
+                    arcs.append((x, y))
+
+        while arcs:
+            x, y = arcs.pop(0)
+            print(x, y)
+            if self.revise(x, y):
+                if len(self.domains[x]) == 0: return False
+                for z in self.crossword.neighbors(x):
+                    if z == y: continue
+                    arcs.append((z, x))
+
+        return True
 
     def assignment_complete(self, assignment):
         """
         Return True if `assignment` is complete (i.e., assigns a value to each
         crossword variable); return False otherwise.
         """
-        raise NotImplementedError
+        if not assignment: return False
+
+        for var in self.domains:
+            if var not in assignment:
+                return False
+        
+        return True
 
     def consistent(self, assignment):
         """
         Return True if `assignment` is consistent (i.e., words fit in crossword
         puzzle without conflicting characters); return False otherwise.
         """
-        raise NotImplementedError
+        for v1 in self.crossword.variables:
+            if v1 not in assignment: continue
+            for v2 in self.crossword.variables:
+                if v1 == v2: continue
+                if v2 not in assignment: continue
+                word1, word2 = assignment[v1], assignment[v2]
+                if len(word1) != v1.length or len(word2) != v2.length:
+                    return False
+                if self.crossword.overlaps[v1, v2]:
+                    i, j = self.crossword.overlaps[v1, v2]
+                    if word1[i] != word2[j]:
+                        return False
+
+        return True
 
     def order_domain_values(self, var, assignment):
         """
@@ -144,7 +205,19 @@ class CrosswordCreator():
         The first value in the list, for example, should be the one
         that rules out the fewest values among the neighbors of `var`.
         """
-        raise NotImplementedError
+        import heapq
+        min_heap = []
+        for word in self.domains[var]:
+            cnt = 0
+            for v in self.domains:
+                if v == var: continue
+                if word in self.domains[v]:
+                    cnt += 1
+            heapq.heappush(min_heap, Pair(cnt, word))
+        
+        odv = [pair.second for pair in min_heap]
+
+        return odv
 
     def select_unassigned_variable(self, assignment):
         """

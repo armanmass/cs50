@@ -2,17 +2,6 @@ import sys
 
 from crossword import *
 
-class Pair:
-    def __init__(self, first, second):
-        self.first = first
-        self.second = second
-
-    def __lt__(self, other):
-        if self.first != other.first:
-            return self.first < other.first
-        return self.second < other.second
-
-
 class CrosswordCreator():
 
     def __init__(self, crossword):
@@ -183,11 +172,9 @@ class CrosswordCreator():
         Return True if `assignment` is consistent (i.e., words fit in crossword
         puzzle without conflicting characters); return False otherwise.
         """
-        for v1 in self.crossword.variables:
-            if v1 not in assignment: continue
-            for v2 in self.crossword.variables:
+        for v1 in assignment:
+            for v2 in assignment:
                 if v1 == v2: continue
-                if v2 not in assignment: continue
                 word1, word2 = assignment[v1], assignment[v2]
                 if len(word1) != v1.length or len(word2) != v2.length:
                     return False
@@ -207,15 +194,24 @@ class CrosswordCreator():
         """
         import heapq
         min_heap = []
+        
         for word in self.domains[var]:
             cnt = 0
-            for v in self.domains:
-                if v == var: continue
-                if word in self.domains[v]:
-                    cnt += 1
-            heapq.heappush(min_heap, Pair(cnt, word))
+            for neighbor in self.crossword.neighbors(var):
+                if neighbor in assignment: continue
+                assignment[var] = word
+                for word2 in self.domains[neighbor]:
+                    assignment[neighbor] = word2
+                    if not self.consistent(assignment):
+                        cnt+=1
+                assignment.pop(neighbor, None) 
+            heapq.heappush(min_heap, (cnt, word))
+        assignment.pop(var, None) 
         
-        odv = [pair.second for pair in min_heap]
+        odv = []
+
+        while min_heap:
+            odv.append(heapq.heappop(min_heap)[1])
 
         return odv
 
@@ -227,7 +223,22 @@ class CrosswordCreator():
         degree. If there is a tie, any of the tied variables are acceptable
         return values.
         """
-        raise NotImplementedError
+        min_domain_var = None
+
+        for var in self.domains:
+            if var not in assignment:
+                if not min_domain_var:
+                    min_domain_var = var
+                    continue
+                min_length = len(self.domains[min_domain_var])
+                new_length = len(self.domains[var])
+                if new_length < min_length:
+                    min_domain_var = var
+                elif new_length == min_length:
+                    if len(self.crossword.neighbors(var)) > len(self.crossword.neighbors(min_domain_var)):
+                        min_domain_var = var
+
+        return min_domain_var
 
     def backtrack(self, assignment):
         """
@@ -238,7 +249,18 @@ class CrosswordCreator():
 
         If no assignment is possible, return None.
         """
-        raise NotImplementedError
+        if self.assignment_complete(assignment): return assignment
+
+        var = self.select_unassigned_variable(assignment)
+
+        for word in self.domains[var]:
+            assignment[var] = word
+            if self.consistent(assignment):
+                res = self.backtrack(assignment)
+                if res: return res
+            assignment.pop(var, None)
+        return None
+
 
 
 def main():

@@ -45,9 +45,15 @@ def get_mask_token_index(mask_token_id, inputs):
     Return the index of the token with the specified `mask_token_id`, or
     `None` if not present in the `inputs`.
     """
-    # TODO: Implement this function
-    raise NotImplementedError
+    mask_ind = None
+    encoded_sequence = inputs.input_ids[0]
 
+    for i in range(len(encoded_sequence)):
+        if mask_token_id == encoded_sequence[i]:
+            mask_ind = i
+            break
+
+    return mask_ind
 
 
 def get_color_for_attention_score(attention_score):
@@ -55,9 +61,8 @@ def get_color_for_attention_score(attention_score):
     Return a tuple of three integers representing a shade of gray for the
     given `attention_score`. Each value should be in the range [0, 255].
     """
-    # TODO: Implement this function
-    raise NotImplementedError
-
+    color = int(attention_score*255.0)
+    return (color, color, color)
 
 
 def visualize_attentions(tokens, attentions):
@@ -71,12 +76,14 @@ def visualize_attentions(tokens, attentions):
     (starting count from 1).
     """
     # TODO: Update this function to produce diagrams for all layers and heads.
-    generate_diagram(
-        1,
-        1,
-        tokens,
-        attentions[0][0][0]
-    )
+    for i in range(len(attentions)):
+        for j in range(len(attentions[0][0])):
+            generate_diagram(
+                i+1,
+                j+1,
+                tokens,
+                attentions[i][0][j]
+            )
 
 
 def generate_diagram(layer_number, head_number, tokens, attention_weights):
